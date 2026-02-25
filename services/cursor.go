@@ -74,9 +74,12 @@ func (s *CursorService) ChatCompletion(ctx context.Context, request *models.Chat
 	truncatedMessages := s.truncateMessages(request.Messages)
 	cursorMessages := models.ToCursorMessages(truncatedMessages, s.config.SystemPromptInject)
 
+	// 转换模型名称为 Cursor API 格式
+	cursorModel := s.convertModelName(request.Model)
+	
 	payload := models.CursorRequest{
 		Context:  []interface{}{},
-		Model:    request.Model,
+		Model:    cursorModel,
 		ID:       utils.GenerateRandomString(16),
 		Messages: cursorMessages,
 		Trigger:  "submit-message",
@@ -202,45 +205,42 @@ func (s *CursorService) fetchXIsHuman(ctx context.Context) (string, error) {
 	if cached != "" && time.Since(lastFetch) < 1*time.Minute {
 		scriptBody = cached
 	} else {
-		resp, err := s.client.R().
-			SetContext(ctx).
-			SetHeaders(s.scriptHeaders()).
-			Get(s.config.ScriptURL)
-
-		if err != nil {
-			// 如果请求失败且有缓存，使用缓存
-			if cached != "" {
-				logrus.Warnf("Failed to fetch script, using cached version: %v", err)
-				scriptBody = cached
-			} else {
-				// 清除缓存
-				s.scriptMutex.Lock()
-				s.scriptCache = ""
-				s.scriptCacheTime = time.Time{}
-				s.scriptMutex.Unlock()
-				return "", fmt.Errorf("failed to fetch script: %w", err)
-			}
-		} else if resp.StatusCode != http.StatusOK {
-			// 如果状态码异常且有缓存，使用缓存
-			if cached != "" {
-				logrus.Warnf("Script fetch returned status %d, using cached version", resp.StatusCode)
-				scriptBody = cached
-			} else {
-				// 清除缓存
-				s.scriptMutex.Lock()
-				s.scriptCache = ""
-				s.scriptCacheTime = time.Time{}
-				s.scriptMutex.Unlock()
-				message := strings.TrimSpace(resp.String())
-				return "", middleware.NewCursorWebError(resp.StatusCode, message)
-			}
+		// 如果 SCRIPT_URL 为空或无法访问，使用空字符串（降级方案）
+		if s.config.ScriptURL == "" {
+			logrus.Warn("SCRIPT_URL is empty, using fallback mode")
+			scriptBody = ""
 		} else {
-			scriptBody = string(resp.Bytes())
-			// 更新缓存
-			s.scriptMutex.Lock()
-			s.scriptCache = scriptBody
-			s.scriptCacheTime = time.Now()
-			s.scriptMutex.Unlock()
+			resp, err := s.client.R().
+				SetContext(ctx).
+				SetHeaders(s.scriptHeaders()).
+				Get(s.config.ScriptURL)
+
+			if err != nil {
+				// 如果请求失败，使用缓存或空字符串
+				if cached != "" {
+					logrus.Warnf("Failed to fetch script, using cached version: %v", err)
+					scriptBody = cached
+				} else {
+					logrus.Warnf("Failed to fetch script and no cache available, using fallback mode: %v", err)
+					scriptBody = "" // 降级方案：使用空字符串
+				}
+			} else if resp.StatusCode != http.StatusOK {
+				// 如果状态码异常，使用缓存或空字符串
+				if cached != "" {
+					logrus.Warnf("Script fetch returned status %d, using cached version", resp.StatusCode)
+					scriptBody = cached
+				} else {
+					logrus.Warnf("Script fetch returned status %d and no cache available, using fallback mode", resp.StatusCode)
+					scriptBody = "" // 降级方案
+				}
+			} else {
+				scriptBody = string(resp.Bytes())
+				// 更新缓存
+				s.scriptMutex.Lock()
+				s.scriptCache = scriptBody
+				s.scriptCacheTime = time.Now()
+				s.scriptMutex.Unlock()
+			}
 		}
 	}
 
@@ -329,4 +329,37 @@ func (s *CursorService) chatHeaders(xIsHuman string) map[string]string {
 
 func (s *CursorService) scriptHeaders() map[string]string {
 	return s.headerGenerator.GetScriptHeaders()
+}
+
+// convertModelName 转换模型名称为 Cursor API 格式
+func (s *CursorService) convertModelName(modelName string) string {
+	// 如果已经是正确格式（包含 /），直接返回
+	if strings.Contains(modelName, "/") {
+		return modelName
+	}
+	
+	// 获取模型配置
+	if config, exists := models.GetModelConfig(modelName); exists {
+		// 如果配置中的 ID 包含 /，使用配置的 ID
+		if strings.Contains(config.ID, "/") {
+			return config.ID
+		}
+	}
+	
+	// 默认映射规则
+	switch {
+	case strings.Contains(modelName, "claude"):
+		if strings.Contains(modelName, "opus") {
+			return "anthropic/claude-opus-4.6"
+		}
+		return "anthropic/claude-sonnet-4.6"
+	case strings.Contains(modelName, "gemini"):
+		return "google/gemini-3.1-pro"
+	case strings.Contains(modelName, "gpt"):
+		// GPT 模型映射到 Claude（因为 Cursor 主要支持 Claude）
+		return "anthropic/claude-sonnet-4.6"
+	default:
+		// 默认使用 Sonnet
+		return "anthropic/claude-sonnet-4.6"
+	}
 }

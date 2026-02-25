@@ -9,13 +9,36 @@ type ModelConfig struct {
 }
 
 // GetModelConfigs 获取所有模型配置
+// 注意：Cursor API 使用 provider/model-name 格式
 func GetModelConfigs() map[string]ModelConfig {
 	return map[string]ModelConfig{
-		// OpenAI GPT-5 系列
+		// Anthropic Claude 4.6 系列（已验证可用）
+		"anthropic/claude-sonnet-4.6": {
+			ID:            "anthropic/claude-sonnet-4.6",
+			Provider:      "Anthropic Claude",
+			MaxTokens:     8192,
+			ContextWindow: 200000,
+		},
+		"anthropic/claude-opus-4.6": {
+			ID:            "anthropic/claude-opus-4.6",
+			Provider:      "Anthropic Claude",
+			MaxTokens:     8192,
+			ContextWindow: 200000,
+		},
+		
+		// Google Gemini（已验证可用）
+		"google/gemini-3.1-pro": {
+			ID:            "google/gemini-3.1-pro",
+			Provider:      "Google Gemini",
+			MaxTokens:     8192,
+			ContextWindow: 1000000,
+		},
+		
+		// 兼容旧格式的别名
 		"gpt-5": {
-			ID:            "gpt-5",
+			ID:            "anthropic/claude-sonnet-4.6", // 映射到实际可用的模型
 			Provider:      "OpenAI",
-			MaxTokens:     4096,
+			MaxTokens:     8192,
 			ContextWindow: 400000,
 		},
 		"gpt-5-codex": {
@@ -57,47 +80,29 @@ func GetModelConfigs() map[string]ModelConfig {
 			ContextWindow: 128000,
 		},
 
-		// Anthropic Claude 系列
+		// 兼容旧格式的 Claude 别名
 		"claude-3.5-sonnet": {
-			ID:            "claude-3.5-sonnet",
-			Provider:      "Anthropic Claude",
-			MaxTokens:     8192,
-			ContextWindow: 200000,
-		},
-		"claude-3.5-haiku": {
-			ID:            "claude-3.5-haiku",
-			Provider:      "Anthropic Claude",
-			MaxTokens:     4096,
-			ContextWindow: 200000,
-		},
-		"claude-3.7-sonnet": {
-			ID:            "claude-3.7-sonnet",
+			ID:            "anthropic/claude-sonnet-4.6",
 			Provider:      "Anthropic Claude",
 			MaxTokens:     8192,
 			ContextWindow: 200000,
 		},
 		"claude-4-sonnet": {
-			ID:            "claude-4-sonnet",
+			ID:            "anthropic/claude-sonnet-4.6",
 			Provider:      "Anthropic Claude",
 			MaxTokens:     8192,
-			ContextWindow: 1000000,
-		},
-		"claude-4.5-sonnet": {
-			ID:            "claude-4.5-sonnet",
-			Provider:      "Anthropic Claude",
-			MaxTokens:     8192,
-			ContextWindow: 1000000,
-		},
-		"claude-4-opus": {
-			ID:            "claude-4-opus",
-			Provider:      "Anthropic Claude",
-			MaxTokens:     4096,
 			ContextWindow: 200000,
 		},
-		"claude-4.1-opus": {
-			ID:            "claude-4.1-opus",
+		"claude-4.5-sonnet": {
+			ID:            "anthropic/claude-sonnet-4.6",
 			Provider:      "Anthropic Claude",
-			MaxTokens:     4096,
+			MaxTokens:     8192,
+			ContextWindow: 200000,
+		},
+		"claude-4-opus": {
+			ID:            "anthropic/claude-opus-4.6",
+			Provider:      "Anthropic Claude",
+			MaxTokens:     8192,
 			ContextWindow: 200000,
 		},
 

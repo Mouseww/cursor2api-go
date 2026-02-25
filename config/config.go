@@ -48,11 +48,11 @@ func LoadConfig() (*Config, error) {
 		Port:               getEnvAsInt("PORT", 8002),
 		Debug:              getEnvAsBool("DEBUG", false),
 		APIKey:             getEnv("API_KEY", "0000"),
-		Models:             getEnv("MODELS", "gpt-4o,claude-3.5-sonnet"),
+		Models:             getEnv("MODELS", "anthropic/claude-sonnet-4.6,anthropic/claude-opus-4.6,google/gemini-3.1-pro"),
 		SystemPromptInject: getEnv("SYSTEM_PROMPT_INJECT", ""),
 		Timeout:            getEnvAsInt("TIMEOUT", 30),
 		MaxInputLength:     getEnvAsInt("MAX_INPUT_LENGTH", 200000),
-		ScriptURL:          getEnv("SCRIPT_URL", "https://cursor.com/_next/static/chunks/pages/_app.js"),
+		ScriptURL:          getEnv("SCRIPT_URL", ""), // 留空使用降级方案
 		FP: FP{
 			UserAgent:               getEnv("USER_AGENT", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"),
 			UNMASKED_VENDOR_WEBGL:   getEnv("UNMASKED_VENDOR_WEBGL", "Google Inc. (Intel)"),
